@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="gptbase",
-    version="0.1.1",
+    version="0.1.2",
     author="callmexss",
     author_email="callmexss@126.com",
     description="A package for simplified interaction with OpenAI's GPT-3 and GPT-4 models.",
@@ -16,6 +16,7 @@ setup(
     install_requires=[
         "openai==0.27.7",
         "rich==13.0.1",
+        "tiktoken==0.3.0",
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
