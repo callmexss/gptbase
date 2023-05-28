@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="gptbase",
-    version="0.1",
+    version="0.1.1",
     author="callmexss",
     author_email="callmexss@126.com",
     description="A package for simplified interaction with OpenAI's GPT-3 and GPT-4 models.",
