@@ -8,10 +8,16 @@ def chat(memory_turns, system_prompt):
     cm = CompletionParameters(stream=True)
     chat = ChatAssistant(memory_turns, system_prompt)
     while True:
-        message = input(">>> ")
-        if message == "exit":
+        try:
+            message = input(">>> ")
+            if message == "exit":
+                break
+            chat.chat(message, cm)
+        except KeyboardInterrupt:
             break
-        chat.chat(message, cm)
+        except Exception as err:
+            print(err)
+
 
 if __name__ == "__main__":
     chat()

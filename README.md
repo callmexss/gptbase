@@ -98,6 +98,12 @@ And you will get output like this:
 Today's fake weather for Boston is _°
 ```
 
+You can also use the command line interface for chat conversations:
+
+```bash
+gptbase-chat --memory-turns 3 --system-prompt "This is a system prompt."
+```
+
 For more examples and a deeper dive into usage, please refer to the detailed documentation. 📘
 
 ## 🙋 Support
