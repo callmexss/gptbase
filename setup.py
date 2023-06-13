@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="gptbase",
-    version="0.1.2",
+    version="0.2.2",
     author="callmexss",
     author_email="callmexss@126.com",
     description="A package for simplified interaction with OpenAI's GPT-3 and GPT-4 models.",
@@ -17,6 +17,7 @@ setup(
         "openai==0.27.7",
         "rich==13.0.1",
         "tiktoken==0.3.0",
+        "click==8.0.3",
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
@@ -24,4 +25,9 @@ setup(
         "Operating System :: OS Independent",
     ],
     python_requires=">=3.9",
+    entry_points={
+        'console_scripts': [
+            'gptbase-chat=gptbase.chat:chat',
+        ],
+    },
 )
