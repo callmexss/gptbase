@@ -1,9 +1,10 @@
 import click
 from gptbase.base import Chat, CompletionParameters
 
+
 @click.command()
-@click.option('--memory-turns', default=3, help='Number of memory turns.')
-@click.option('--system-prompt', default='', help='System prompt.')
+@click.option("--memory-turns", default=3, help="Number of memory turns.")
+@click.option("--system-prompt", default="", help="System prompt.")
 def chat(memory_turns, system_prompt):
     cm = CompletionParameters(stream=True)
     chat = Chat(memory_turns, system_prompt)

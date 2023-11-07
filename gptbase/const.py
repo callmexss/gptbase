@@ -45,13 +45,15 @@ WARNINGS = {
 # Speech to Text
 WHISPER_1 = "whisper-1"
 
+
 # Whisper Response Format
 class WhisperResponseType:
-    JSON = 'json'
-    TEXT = 'text'
-    SRT = 'srt'
-    VERBOSE_JSON = 'verbose_json'
-    VTT = 'vtt'
+    JSON = "json"
+    TEXT = "text"
+    SRT = "srt"
+    VERBOSE_JSON = "verbose_json"
+    VTT = "vtt"
+
 
 # ISO-639-1
 class LanguageCodes:
@@ -86,6 +88,7 @@ class LanguageCodes:
 TTS_1 = "tts-1"
 TTS_1_HD = "tts-1-hd"
 
+
 # Voice
 class AIVoice:
     ALLOY = "alloy"
@@ -95,12 +98,13 @@ class AIVoice:
     NOVA = "nova"
     SHIMMER = "shimmer"
 
+
 # Audio Type
 class TTSAudioType:
-    MP3 = 'mp3'
-    OPUS = 'opus'
-    ACC = 'acc'
-    FLAC = 'flac'
+    MP3 = "mp3"
+    OPUS = "opus"
+    ACC = "acc"
+    FLAC = "flac"
 
 
 # Embedding
@@ -111,6 +115,7 @@ ADA_002 = "text-embedding-ada-002"
 DALLE_2 = "dall-e-2"
 DALLE_3 = "dall-e-3"
 
+
 # Image Size
 class ImgSize:
     _256x256 = "256x256"
@@ -119,15 +124,18 @@ class ImgSize:
     _1792x1024 = "1792x1024"
     _1024x1792 = "1024x1792"
 
+
 # Quality constants
 class ImgQuality:
     STANDARD = "standard"
     HD = "hd"
 
+
 # Style constants
 class ImgStyle:
     VIVID = "vivid"
     NATURAL = "natural"
+
 
 # Response format constants
 class DallEResponseType:

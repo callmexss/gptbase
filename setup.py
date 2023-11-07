@@ -27,8 +27,8 @@ setup(
     ],
     python_requires=">=3.10",
     entry_points={
-        'console_scripts': [
-            'gptbase-chat=gptbase.chat:chat',
+        "console_scripts": [
+            "gptbase-chat=gptbase.chat:chat",
         ],
     },
 )

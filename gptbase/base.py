@@ -43,17 +43,10 @@ def openai_tts(
 
 
 def openai_whisper_common(
-    audio_file_path: str,
-    model: str,
-    api_function: Callable[..., Any],
-    **kwargs
+    audio_file_path: str, model: str, api_function: Callable[..., Any], **kwargs
 ):
     with open(audio_file_path, "rb") as audio_file:
-        result = api_function(
-            model=model,
-            file=audio_file,
-            **kwargs
-        )
+        result = api_function(model=model, file=audio_file, **kwargs)
     return result
 
 
@@ -63,7 +56,7 @@ def openai_whisper(
     language: Optional[str] = None,
     prompt: Optional[str] = None,
     response_format: str = const.WhisperResponseType.JSON,
-    temperature: Optional[float] = None
+    temperature: Optional[float] = None,
 ):
     return openai_whisper_common(
         audio_file_path,
@@ -72,7 +65,7 @@ def openai_whisper(
         language=language,
         prompt=prompt,
         response_format=response_format,
-        temperature=temperature
+        temperature=temperature,
     )
 
 
@@ -81,7 +74,7 @@ def openai_whisper_translation(
     model: str = const.WHISPER_1,
     prompt: Optional[str] = None,
     response_format: str = const.WhisperResponseType.JSON,
-    temperature: Optional[float] = None
+    temperature: Optional[float] = None,
 ):
     return openai_whisper_common(
         audio_file_path,
@@ -89,7 +82,7 @@ def openai_whisper_translation(
         client.audio.translations.create,
         prompt=prompt,
         response_format=response_format,
-        temperature=temperature
+        temperature=temperature,
     )
 
 
@@ -99,26 +92,28 @@ class TranscriptionConverter:
         self.segments = transcription.segments
 
     def to_text(self) -> str:
-        return '\n'.join(segment['text'] for segment in self.segments)
+        return "\n".join(segment["text"] for segment in self.segments)
 
     def to_json(self) -> str:
-        return json.dumps([segment['text'] for segment in self.segments])
+        return json.dumps([segment["text"] for segment in self.segments])
 
     def to_srt(self) -> str:
         return self._convert_to_subtitle_format(is_srt=True)
 
     def to_vtt(self) -> str:
-        return 'WEBVTT\n\n' + self._convert_to_subtitle_format(is_srt=False)
+        return "WEBVTT\n\n" + self._convert_to_subtitle_format(is_srt=False)
 
     def _convert_to_subtitle_format(self, is_srt: bool) -> str:
         subtitle_output = []
         for i, segment in enumerate(self.segments):
-            start_time = segment['start']
-            end_time = segment['end']
+            start_time = segment["start"]
+            end_time = segment["end"]
             start_timestamp = self._format_timestamp(start_time, is_srt)
             end_timestamp = self._format_timestamp(end_time, is_srt)
-            subtitle_output.append(f'{i + 1}\n{start_timestamp} --> {end_timestamp}\n{segment["text"]}\n')
-        return '\n'.join(subtitle_output)
+            subtitle_output.append(
+                f'{i + 1}\n{start_timestamp} --> {end_timestamp}\n{segment["text"]}\n'
+            )
+        return "\n".join(subtitle_output)
 
     @staticmethod
     def _format_timestamp(time: float, is_srt: bool) -> str:
@@ -126,9 +121,9 @@ class TranscriptionConverter:
         minutes, seconds = divmod(remainder, 60)
         milliseconds = int((time % 1) * 1000)
         if is_srt:
-            return f'{hours:02d}:{minutes:02d}:{seconds:02d},{milliseconds:03d}'
+            return f"{hours:02d}:{minutes:02d}:{seconds:02d},{milliseconds:03d}"
         else:
-            return f'{hours:02d}:{minutes:02d}:{seconds:02d}.{milliseconds:03d}'
+            return f"{hours:02d}:{minutes:02d}:{seconds:02d}.{milliseconds:03d}"
 
     def convert(self, output_type: str) -> str:
         if output_type == const.WhisperResponseType.TEXT:
@@ -151,7 +146,7 @@ class ImageParameters:
         size: str = const.ImgSize._1024x1024,
         model: str = const.DALLE_2,
         quality: Optional[str] = None,  # Only for DALL-E 3
-        style: Optional[str] = None,    # Only for DALL-E 3
+        style: Optional[str] = None,  # Only for DALL-E 3
         response_format: str = const.DallEResponseType.URL,
         user: Optional[str] = None,
     ):
@@ -175,7 +170,7 @@ class ImageParameters:
             params["prompt"] = self.prompt
         if self.quality:  # Only add if DALL-E 3 and parameter is provided
             params["quality"] = self.quality
-        if self.style:    # Only add if DALL-E 3 and parameter is provided
+        if self.style:  # Only add if DALL-E 3 and parameter is provided
             params["style"] = self.style
         if self.user:
             params["user"] = self.user
@@ -191,14 +186,18 @@ class DallE:
         payload = image_params.to_dict()
         return client.images.generate(**payload)
 
-    def edit_image(self, image: bytes, mask: Optional[bytes], image_params: ImageParameters) -> List[dict]:
+    def edit_image(
+        self, image: bytes, mask: Optional[bytes], image_params: ImageParameters
+    ) -> List[dict]:
         payload = image_params.to_dict()
         payload["image"] = image
         if mask:
             payload["mask"] = mask
         return client.images.edit(**payload)
 
-    def create_image_variation(self, image: bytes, image_params: ImageParameters) -> List[dict]:
+    def create_image_variation(
+        self, image: bytes, image_params: ImageParameters
+    ) -> List[dict]:
         payload = image_params.to_dict()
         payload["image"] = image
         return client.images.create_variation(**payload)
@@ -216,7 +215,9 @@ def get_chunks(chat_completion: Stream[ChatCompletionChunk]) -> str:
         yield chunk.choices[0].delta.content
 
 
-def extract_function_call(chat_completion: ChatCompletion) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
+def extract_function_call(
+    chat_completion: ChatCompletion,
+) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
     """Extracts the function call name and arguments from the chat completion."""
     chat_completion = response
     if chat_completion.choices:
@@ -229,7 +230,9 @@ def extract_function_call(chat_completion: ChatCompletion) -> Tuple[Optional[str
     return None, None
 
 
-def call_with_chat_completion(chat_completion: Dict[str, Any], func_dic: Dict[str, Any]) -> Any:
+def call_with_chat_completion(
+    chat_completion: Dict[str, Any], func_dic: Dict[str, Any]
+) -> Any:
     """Calls a function with the chat completion."""
     func_name, func_args = extract_function_call(chat_completion)
     if func_name in func_dic:
@@ -247,30 +250,25 @@ class FunctionCall:
 
 
 class ToolFunction:
-    def __init__(self, name: str, parameters: Dict[str, Any], description: Optional[str] = None):
+    def __init__(
+        self, name: str, parameters: Dict[str, Any], description: Optional[str] = None
+    ):
         self.type = "function"
         self.function = {
             "name": name,
             "parameters": parameters,
-            "description": description
+            "description": description,
         }
 
     def to_dict(self) -> Dict[str, Any]:
         """Converts the ToolFunction instance to a dictionary."""
-        return {
-            "type": self.type,
-            "function": self.function
-        }
+        return {"type": self.type, "function": self.function}
+
 
 class ToolChoice:
     def __init__(self, name: Optional[str] = None):
         if name:
-            self.tool_choice = {
-                "type": "function",
-                "function": {
-                    "name": name
-                }
-            }
+            self.tool_choice = {"type": "function", "function": {"name": name}}
         else:
             self.tool_choice = "auto"
 
@@ -294,7 +292,7 @@ class CompletionParameters:
         logit_bias: Optional[Dict[str, float]] = None,
         user: Optional[str] = None,
         function_call: Optional[FunctionCall] = None,  # Deprecated: function_call
-        functions: Optional[List[Dict[str, Any]]] = None, # Deprecated: functions
+        functions: Optional[List[Dict[str, Any]]] = None,  # Deprecated: functions
         tools: Optional[List[ToolFunction]] = None,
         tool_choice: Optional[ToolChoice] = None,
     ):
@@ -317,8 +315,8 @@ class CompletionParameters:
     def to_dict(self) -> Dict[str, Any]:
         """Converts the CompletionParameters instance to a dictionary."""
         chat_params = {
-            k: v.to_dict() if hasattr(v, "to_dict") else v 
-            for k, v in vars(self).items() 
+            k: v.to_dict() if hasattr(v, "to_dict") else v
+            for k, v in vars(self).items()
             if v is not None
         }
         return chat_params
@@ -334,7 +332,12 @@ class BaseChat:
         """Returns a list of available model names."""
         return [model.id for model in client.models.list().data]
 
-    def ask(self, prompt: str, system_prompt: str = "", params: CompletionParameters = CompletionParameters()) -> ChatCompletion:
+    def ask(
+        self,
+        prompt: str,
+        system_prompt: str = "",
+        params: CompletionParameters = CompletionParameters(),
+    ) -> ChatCompletion:
         """Asks a question to the model and returns the response."""
         logger.info(prompt)
         messages = [
@@ -378,7 +381,12 @@ class Chat(BaseChat):
         else:
             self.q = deque(maxlen=memory_turns)
 
-    def ask(self, messages: deque, system_prompt: str = "", params: CompletionParameters = CompletionParameters()) -> Dict[str, Any]:
+    def ask(
+        self,
+        messages: deque,
+        system_prompt: str = "",
+        params: CompletionParameters = CompletionParameters(),
+    ) -> Dict[str, Any]:
         """Asks a question to the model and returns the response."""
         logger.info(messages)
         messages = [
@@ -393,7 +401,9 @@ class Chat(BaseChat):
 
         return chat_completion
 
-    def chat(self, message: str, params: CompletionParameters = CompletionParameters()) -> str:
+    def chat(
+        self, message: str, params: CompletionParameters = CompletionParameters()
+    ) -> str:
         """Chats with the model and returns the response."""
         self.q.append(self.build_user_message(message))
         chat_completion = self.ask(self.q, self.system_prompt, params)
@@ -427,7 +437,8 @@ class AssistantConfig:
         instructions: Optional[str] = None,
         tools: Optional[List[Dict[str, str]]] = None,
         file_ids: Optional[List[str]] = None,
-        metadata: Optional[Dict[str, str]] = None):
+        metadata: Optional[Dict[str, str]] = None,
+    ):
         self.model = model
         self.name = name
         self.description = description
@@ -446,41 +457,200 @@ class OpenAIAssistant:
         if api_key:
             client.api_key = api_key
 
-    def create_assistant(self, config: AssistantConfig) -> dict:
+    def create_assistant(self, config: AssistantConfig):
         """Creates an assistant with the given configuration."""
         return client.beta.assistants.create(**config.to_dict())
 
-    def modify_assistant(self, assistant_id: str, config: AssistantConfig) -> dict:
+    def modify_assistant(self, assistant_id: str, config: AssistantConfig):
         """Modifies an assistant with the given configuration."""
         return client.beta.assistants.update(assistant_id, **config.to_dict())
 
-    def list_assistants(self, limit: int = 20, order: str = "desc") -> List[dict]:
+    def list_assistants(self, limit: int = 20, order: str = "desc"):
         """Lists all assistants created by the user's organization."""
         return client.beta.assistants.list(limit=limit, order=order).data
 
-    def retrieve_assistant(self, assistant_id: str) -> dict:
+    def retrieve_assistant(self, assistant_id: str):
         """Retrieves an assistant."""
         return client.beta.assistants.retrieve(assistant_id)
 
-    def delete_assistant(self, assistant_id: str) -> dict:
+    def delete_assistant(self, assistant_id: str):
         """Deletes an assistant."""
         return client.beta.assistants.delete(assistant_id)
 
-    def create_assistant_file(self, assistant_id: str, file_id: str) -> dict:
+    def create_assistant_file(self, assistant_id: str, file_id: str):
         """Attaches a file to an assistant."""
-        return client.beta.assistants.files.create(assistant_id=assistant_id, file_id=file_id)
+        return client.beta.assistants.files.create(
+            assistant_id=assistant_id, file_id=file_id
+        )
 
-    def list_assistant_files(self, assistant_id: str) -> List[dict]:
+    def list_assistant_files(self, assistant_id: str):
         """Lists all files attached to an assistant."""
         return client.beta.assistants.files.list(assistant_id=assistant_id).data
 
-    def retrieve_assistant_file(self, assistant_id: str, file_id: str) -> dict:
+    def retrieve_assistant_file(self, assistant_id: str, file_id: str):
         """Retrieves a specific file attached to an assistant."""
-        return client.beta.assistants.files.retrieve(assistant_id=assistant_id, file_id=file_id)
+        return client.beta.assistants.files.retrieve(
+            assistant_id=assistant_id, file_id=file_id
+        )
 
-    def delete_assistant_file(self, assistant_id: str, file_id: str) -> dict:
+    def delete_assistant_file(self, assistant_id: str, file_id: str):
         """Deletes a specific file attached to an assistant."""
-        return client.beta.assistants.files.delete(assistant_id=assistant_id, file_id=file_id)
+        return client.beta.assistants.files.delete(
+            assistant_id=assistant_id, file_id=file_id
+        )
+
+
+class ThreadsManager:
+    def __init__(self, api_key: str = ""):
+        if api_key:
+            client.api_key = api_key
+
+    def create_thread(
+        self, messages: Optional[list] = None, metadata: Optional[Dict[str, str]] = None
+    ):
+        """Create a thread with optional initial messages and metadata."""
+        return client.beta.threads.create(
+            messages=messages or [], metadata=metadata or {}
+        )
+
+    def retrieve_thread(self, thread_id: str):
+        """Retrieve a thread by its ID."""
+        return client.beta.threads.retrieve(thread_id=thread_id)
+
+    def modify_thread(self, thread_id: str, metadata: Optional[Dict[str, str]] = None):
+        """Modify the metadata of a thread."""
+        return client.beta.threads.update(thread_id=thread_id, metadata=metadata or {})
+
+    def delete_thread(self, thread_id: str):
+        """Delete a thread by its ID."""
+        return client.beta.threads.delete(thread_id=thread_id)
+
+
+class MessagesManager:
+    def __init__(self, api_key: str = ""):
+        client.api_key = api_key
+
+    def create_message(
+        self,
+        thread_id: str,
+        role: str,
+        content: str,
+        file_ids: Optional[list] = None,
+        metadata: Optional[dict] = None,
+    ):
+        """Create a message within a thread."""
+        return client.beta.threads.messages.create(
+            thread_id=thread_id,
+            role=role,
+            content=content,
+            file_ids=file_ids or [],
+            metadata=metadata or {},
+        )
+
+    def retrieve_message(self, thread_id: str, message_id: str):
+        """Retrieve a message within a thread."""
+        return client.beta.threads.messages.retrieve(
+            thread_id=thread_id, message_id=message_id
+        )
+
+    def modify_message(
+        self, thread_id: str, message_id: str, metadata: Optional[dict] = None
+    ):
+        """Modify a message within a thread."""
+        return client.beta.threads.messages.update(
+            thread_id=thread_id, message_id=message_id, metadata=metadata or {}
+        )
+
+    def delete_message(self, thread_id: str, message_id: str):
+        """Delete a message within a thread."""
+        return client.beta.threads.messages.delete(
+            thread_id=thread_id, message_id=message_id
+        )
+
+    def list_messages(self, thread_id: str, limit: int = 20, order: str = "desc"):
+        """List messages within a thread."""
+        return client.beta.threads.messages.list(
+            thread_id=thread_id, limit=limit, order=order
+        ).data
+
+
+class RunParameters:
+    def __init__(
+        self,
+        assistant_id: str,
+        model: Optional[str] = None,
+        instructions: Optional[str] = None,
+        tools: Optional[List[Dict]] = None,
+        metadata: Optional[Dict[str, str]] = None,
+    ):
+        self.assistant_id = assistant_id
+        self.model = model
+        self.instructions = instructions
+        self.tools = tools
+        self.metadata = metadata
+
+    def to_dict(self) -> dict:
+        """Converts the RunParameters instance to a dictionary for the API request."""
+        params = {
+            "assistant_id": self.assistant_id,
+            "model": self.model,
+            "instructions": self.instructions,
+            "tools": self.tools,
+            "metadata": self.metadata,
+        }
+        # Remove keys with None values
+        return {k: v for k, v in params.items() if v is not None}
+
+
+class RunsManager:
+    def __init__(self, api_key: str = ""):
+        if api_key:
+            client.api_key = api_key
+
+    def create_run(
+        self,
+        thread_id: str,
+        assistant_id: str,
+        model: Optional[str] = None,
+        instructions: Optional[str] = None,
+        tools: Optional[list] = None,
+        metadata: Optional[dict] = None,
+    ):
+        """Create a run for the given thread."""
+        return client.beta.threads.runs.create(
+            thread_id=thread_id,
+            assistant_id=assistant_id,
+            model=model,
+            instructions=instructions,
+            tools=tools,
+            metadata=metadata,
+        )
+
+    def retrieve_run(self, thread_id: str, run_id: str):
+        """Retrieve a specific run."""
+        return client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run_id)
+
+    def modify_run(self, thread_id: str, run_id: str, metadata: Optional[dict] = None):
+        """Modify a specific run."""
+        return client.beta.threads.runs.update(
+            thread_id=thread_id, run_id=run_id, metadata=metadata
+        )
+
+    def list_runs(self, thread_id: str, limit: int = 20, order: str = "desc"):
+        """List all runs for a given thread."""
+        return client.beta.threads.runs.list(
+            thread_id=thread_id, limit=limit, order=order
+        ).data
+
+    def cancel_run(self, thread_id: str, run_id: str):
+        """Cancel a run that is in progress."""
+        return client.beta.threads.runs.cancel(thread_id=thread_id, run_id=run_id)
+
+    def submit_tool_outputs(self, thread_id: str, run_id: str, tool_outputs: list):
+        """Submit tool outputs for a run that requires action."""
+        return client.beta.threads.runs.submit_tool_outputs(
+            thread_id=thread_id, run_id=run_id, tool_outputs=tool_outputs
+        )
 
 
 def get_encoding(model):
@@ -488,7 +658,9 @@ def get_encoding(model):
     try:
         return tiktoken.encoding_for_model(model)
     except KeyError:
-        print(f"Warning: model {model} not found. Using {const.DEFAULT_MODEL} encoding.")
+        print(
+            f"Warning: model {model} not found. Using {const.DEFAULT_MODEL} encoding."
+        )
         return tiktoken.get_encoding(const.DEFAULT_MODEL)
 
 
@@ -521,16 +693,22 @@ def num_tokens_from_messages(messages, model=const.GPT_35_TURBO_0613):
         print("Warning: model not found. Using cl100k_base encoding.")
         encoding = tiktoken.get_encoding("cl100k_base")
     if model == "gpt-3.5-turbo-0301":
-        tokens_per_message = 4  # every message follows <|start|>{role/name}\n{content}<|end|>\n
+        tokens_per_message = (
+            4  # every message follows <|start|>{role/name}\n{content}<|end|>\n
+        )
         tokens_per_name = -1  # if there's a name, the role is omitted
     elif model in const.GPT_MODEL_LIST:
         tokens_per_message = 3
         tokens_per_name = 1
     elif "gpt-3.5-turbo" in model:
-        print("Warning: gpt-3.5-turbo may update over time. Returning num tokens assuming gpt-3.5-turbo-0613.")
+        print(
+            "Warning: gpt-3.5-turbo may update over time. Returning num tokens assuming gpt-3.5-turbo-0613."
+        )
         return num_tokens_from_messages(messages, model="gpt-3.5-turbo-0613")
     elif "gpt-4" in model:
-        print("Warning: gpt-4 may update over time. Returning num tokens assuming gpt-4-0613.")
+        print(
+            "Warning: gpt-4 may update over time. Returning num tokens assuming gpt-4-0613."
+        )
         return num_tokens_from_messages(messages, model="gpt-4-0613")
     else:
         raise NotImplementedError(
@@ -565,7 +743,7 @@ if __name__ == "__main__":
         print(chunk, end="")
     print()
 
-    s = ''.join(li)
+    s = "".join(li)
     msg = assistant.build_assistant_message(s)
     num_tokens_from_messages([msg])
 
@@ -587,11 +765,11 @@ if __name__ == "__main__":
                 "properties": {
                     "location": {
                         "type": "string",
-                        "description": "The location to get the weather for"
+                        "description": "The location to get the weather for",
                     }
                 },
-                "required": ["location"]
-            }
+                "required": ["location"],
+            },
         }
     ]
 
@@ -621,15 +799,19 @@ if __name__ == "__main__":
     func_dic
     call_with_chat_completion(response, func_dic)
 
-    s = 'Python 是一门非常有趣的编程语言。'
+    s = "Python 是一门非常有趣的编程语言。"
     response = openai_tts(s, speed=1.2)
-    response.stream_to_file('./test.mp3')
-    res = openai_whisper('./test.mp3', response_format=const.WhisperResponseType.VERBOSE_JSON)
+    response.stream_to_file("./test.mp3")
+    res = openai_whisper(
+        "./test.mp3", response_format=const.WhisperResponseType.VERBOSE_JSON
+    )
     rich.print(res)
     converter = TranscriptionConverter(res)
     rich.print(converter.to_srt())
     rich.print(converter.to_vtt())
-    openai_whisper_translation('./test.mp3', response_format=const.WhisperResponseType.VTT)
+    openai_whisper_translation(
+        "./test.mp3", response_format=const.WhisperResponseType.VTT
+    )
 
     image_client = DallE()
     # Image generation with DALL-E 3
@@ -654,7 +836,7 @@ if __name__ == "__main__":
     edited_images = image_client.edit_image(
         image=open("cloud.png", "rb").read(),
         mask=open("cloud.png", "rb").read(),
-        image_params=image_params_dalle2
+        image_params=image_params_dalle2,
     )
 
     # Creating image variations with DALL-E 2
@@ -664,8 +846,7 @@ if __name__ == "__main__":
         model=const.DALLE_2,
     )
     image_variations = image_client.create_image_variation(
-        image=open("mask.png", "rb").read(),
-        image_params=image_variation_params
+        image=open("mask.png", "rb").read(), image_params=image_variation_params
     )
 
     # Process the response as needed
@@ -675,7 +856,6 @@ if __name__ == "__main__":
 
     # Example usage
     assistant_manager = OpenAIAssistant()
-
     assistant_config = AssistantConfig(
         name="Math Tutor",
         model=const.GPT_35_TURBO_1106,
@@ -683,40 +863,33 @@ if __name__ == "__main__":
         tools=[{"type": "code_interpreter"}],
     )
 
-    # Create an assistant
-    my_assistant = assistant_manager.create_assistant(assistant_config)
-    my_assistant.id
+    assistant_manager = OpenAIAssistant()
+    assistant = assistant_manager.create_assistant(config=assistant_config)
+    assistant_manager.list_assistants()
 
-    # Retrieve an assistant
-    my_retrieved_assistant = assistant_manager.retrieve_assistant(my_assistant.id)
+    thread_manager = ThreadsManager()
+    thread = thread_manager.create_thread()
 
-    # Modify an assistant
-    assistant_config.name = "Math-Tutor"
-    my_updated_assistant = assistant_manager.modify_assistant(
-        my_assistant.id,
-        assistant_config
+    message_manager = MessagesManager()
+    message_content = "我需要解决方程 `3x**2 + 11 = 14`。你能帮我吗？"
+    message = message_manager.create_message(
+        thread_id=thread.id, role="user", content=message_content
     )
 
-    # Delete an assistant
-    delete_status = assistant_manager.delete_assistant(my_assistant.id)
+    runs_manager = RunsManager()
+    run_params = RunParameters(assistant_id=assistant.id)
 
-    # List all assistants
-    assistants = assistant_manager.list_assistants()
-
-    # Attach a file to an assistant
-    assistant_file = assistant_manager.create_assistant_file(
-        assistant_id=my_assistant.id, file_id="file-wB6RM6wHdA49HfS2DJ9fEyrH"
+    run = runs_manager.create_run(
+        thread_id=thread.id,
+        assistant_id=assistant.id,
     )
 
-    # Retrieve an attached file from an assistant
-    retrieved_file = assistant_manager.retrieve_assistant_file(
-        assistant_id=my_assistant["id"], file_id=assistant_file["id"]
-    )
+    while True:
+        run_status = runs_manager.retrieve_run(thread_id=thread.id, run_id=run.id)
+        if run_status.status == "completed":
+            break
 
-    # Delete an attached file from an assistant
-    delete_file_status = assistant_manager.delete_assistant_file(
-        assistant_id=my_assistant["id"], file_id=assistant_file["id"]
-    )
+    messages = message_manager.list_messages(thread_id=thread.id)
 
-    # List files attached to an assistant
-    assistant_manager.list_assistant_files(my_assistant.id)
+    for msg in messages:
+        print(f"{msg.role.title()}: {msg.content[0].text.value}")
