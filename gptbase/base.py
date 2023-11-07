@@ -1,13 +1,13 @@
 import json
 import logging
 from collections import deque
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Callable
 
 import rich
 import tiktoken
 from openai import OpenAI, Stream
 from openai.types.chat import ChatCompletionChunk, ChatCompletion
-from openai.types.audio import Transcription, Translation
+from openai.types.audio import Transcription
 from rich.logging import RichHandler
 
 import const
@@ -42,6 +42,21 @@ def openai_tts(
     )
 
 
+def openai_whisper_common(
+    audio_file_path: str,
+    model: str,
+    api_function: Callable[..., Any],
+    **kwargs
+):
+    with open(audio_file_path, "rb") as audio_file:
+        result = api_function(
+            model=model,
+            file=audio_file,
+            **kwargs
+        )
+    return result
+
+
 def openai_whisper(
     audio_file_path: str,
     model: str = const.WHISPER_1,
@@ -50,16 +65,32 @@ def openai_whisper(
     response_format: str = const.WhisperResponseType.JSON,
     temperature: Optional[float] = None
 ):
-    with open(audio_file_path, "rb") as audio_file:
-        transcription = client.audio.transcriptions.create(
-            model=model,
-            file=audio_file,
-            language=language,
-            prompt=prompt,
-            response_format=response_format,
-            temperature=temperature
-        )
-    return transcription
+    return openai_whisper_common(
+        audio_file_path,
+        model,
+        client.audio.transcriptions.create,
+        language=language,
+        prompt=prompt,
+        response_format=response_format,
+        temperature=temperature
+    )
+
+
+def openai_whisper_translation(
+    audio_file_path: str,
+    model: str = const.WHISPER_1,
+    prompt: Optional[str] = None,
+    response_format: str = const.WhisperResponseType.JSON,
+    temperature: Optional[float] = None
+):
+    return openai_whisper_common(
+        audio_file_path,
+        model,
+        client.audio.translations.create,
+        prompt=prompt,
+        response_format=response_format,
+        temperature=temperature
+    )
 
 
 class TranscriptionConverter:
@@ -424,7 +455,7 @@ if __name__ == "__main__":
     func_dic
     call_with_chat_completion(response, func_dic)
 
-    s = 'There are several steps you can follow to learn Python.'
+    s = 'Python 是一门非常有趣的编程语言。'
     response = openai_tts(s, speed=1.2)
     response.stream_to_file('./test.mp3')
     res = openai_whisper('./test.mp3', response_format=const.WhisperResponseType.VERBOSE_JSON)
@@ -432,3 +463,4 @@ if __name__ == "__main__":
     converter = TranscriptionConverter(res)
     rich.print(converter.to_srt())
     rich.print(converter.to_vtt())
+    openai_whisper_translation('./test.mp3', response_format=const.WhisperResponseType.VTT)
