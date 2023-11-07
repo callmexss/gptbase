@@ -418,6 +418,71 @@ class Chat(BaseChat):
         return message
 
 
+class AssistantConfig:
+    def __init__(
+        self,
+        model: str,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        instructions: Optional[str] = None,
+        tools: Optional[List[Dict[str, str]]] = None,
+        file_ids: Optional[List[str]] = None,
+        metadata: Optional[Dict[str, str]] = None):
+        self.model = model
+        self.name = name
+        self.description = description
+        self.instructions = instructions
+        self.tools = tools
+        self.file_ids = file_ids
+        self.metadata = metadata
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Converts the AssistantConfig instance to a dictionary, filtering out None values."""
+        return {k: v for k, v in vars(self).items() if v is not None}
+
+
+class OpenAIAssistant:
+    def __init__(self, api_key: str = None):
+        if api_key:
+            client.api_key = api_key
+
+    def create_assistant(self, config: AssistantConfig) -> dict:
+        """Creates an assistant with the given configuration."""
+        return client.beta.assistants.create(**config.to_dict())
+
+    def modify_assistant(self, assistant_id: str, config: AssistantConfig) -> dict:
+        """Modifies an assistant with the given configuration."""
+        return client.beta.assistants.update(assistant_id, **config.to_dict())
+
+    def list_assistants(self, limit: int = 20, order: str = "desc") -> List[dict]:
+        """Lists all assistants created by the user's organization."""
+        return client.beta.assistants.list(limit=limit, order=order).data
+
+    def retrieve_assistant(self, assistant_id: str) -> dict:
+        """Retrieves an assistant."""
+        return client.beta.assistants.retrieve(assistant_id)
+
+    def delete_assistant(self, assistant_id: str) -> dict:
+        """Deletes an assistant."""
+        return client.beta.assistants.delete(assistant_id)
+
+    def create_assistant_file(self, assistant_id: str, file_id: str) -> dict:
+        """Attaches a file to an assistant."""
+        return client.beta.assistants.files.create(assistant_id=assistant_id, file_id=file_id)
+
+    def list_assistant_files(self, assistant_id: str) -> List[dict]:
+        """Lists all files attached to an assistant."""
+        return client.beta.assistants.files.list(assistant_id=assistant_id).data
+
+    def retrieve_assistant_file(self, assistant_id: str, file_id: str) -> dict:
+        """Retrieves a specific file attached to an assistant."""
+        return client.beta.assistants.files.retrieve(assistant_id=assistant_id, file_id=file_id)
+
+    def delete_assistant_file(self, assistant_id: str, file_id: str) -> dict:
+        """Deletes a specific file attached to an assistant."""
+        return client.beta.assistants.files.delete(assistant_id=assistant_id, file_id=file_id)
+
+
 def get_encoding(model):
     """Get the encoding for a model, with a fallback to the default model if not found."""
     try:
@@ -607,3 +672,51 @@ if __name__ == "__main__":
     print(generated_images)
     print(edited_images)
     print(image_variations)
+
+    # Example usage
+    assistant_manager = OpenAIAssistant()
+
+    assistant_config = AssistantConfig(
+        name="Math Tutor",
+        model=const.GPT_35_TURBO_1106,
+        instructions="You are a personal math tutor. Write and run code to answer math questions.",
+        tools=[{"type": "code_interpreter"}],
+    )
+
+    # Create an assistant
+    my_assistant = assistant_manager.create_assistant(assistant_config)
+    my_assistant.id
+
+    # Retrieve an assistant
+    my_retrieved_assistant = assistant_manager.retrieve_assistant(my_assistant.id)
+
+    # Modify an assistant
+    assistant_config.name = "Math-Tutor"
+    my_updated_assistant = assistant_manager.modify_assistant(
+        my_assistant.id,
+        assistant_config
+    )
+
+    # Delete an assistant
+    delete_status = assistant_manager.delete_assistant(my_assistant.id)
+
+    # List all assistants
+    assistants = assistant_manager.list_assistants()
+
+    # Attach a file to an assistant
+    assistant_file = assistant_manager.create_assistant_file(
+        assistant_id=my_assistant.id, file_id="file-wB6RM6wHdA49HfS2DJ9fEyrH"
+    )
+
+    # Retrieve an attached file from an assistant
+    retrieved_file = assistant_manager.retrieve_assistant_file(
+        assistant_id=my_assistant["id"], file_id=assistant_file["id"]
+    )
+
+    # Delete an attached file from an assistant
+    delete_file_status = assistant_manager.delete_assistant_file(
+        assistant_id=my_assistant["id"], file_id=assistant_file["id"]
+    )
+
+    # List files attached to an assistant
+    assistant_manager.list_assistant_files(my_assistant.id)
