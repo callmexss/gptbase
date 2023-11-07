@@ -105,3 +105,31 @@ class TTSAudioType:
 
 # Embedding
 ADA_002 = "text-embedding-ada-002"
+
+
+# DallE
+DALLE_2 = "dall-e-2"
+DALLE_3 = "dall-e-3"
+
+# Image Size
+class ImgSize:
+    _256x256 = "256x256"
+    _512x512 = "512x512"
+    _1024x1024 = "1024x1024"
+    _1792x1024 = "1792x1024"
+    _1024x1792 = "1024x1792"
+
+# Quality constants
+class ImgQuality:
+    STANDARD = "standard"
+    HD = "hd"
+
+# Style constants
+class ImgStyle:
+    VIVID = "vivid"
+    NATURAL = "natural"
+
+# Response format constants
+class DallEResponseType:
+    URL = "url"
+    B64_JSON = "b64_json"

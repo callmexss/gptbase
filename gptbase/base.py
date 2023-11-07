@@ -143,6 +143,67 @@ class TranscriptionConverter:
             return json.dumps(self.transcription)
 
 
+class ImageParameters:
+    def __init__(
+        self,
+        prompt: str = "",
+        n: int = 1,
+        size: str = const.ImgSize._1024x1024,
+        model: str = const.DALLE_2,
+        quality: Optional[str] = None,  # Only for DALL-E 3
+        style: Optional[str] = None,    # Only for DALL-E 3
+        response_format: str = const.DallEResponseType.URL,
+        user: Optional[str] = None,
+    ):
+        self.prompt = prompt
+        self.n = n
+        self.size = size
+        self.model = model
+        self.quality = quality
+        self.style = style
+        self.response_format = response_format
+        self.user = user
+
+    def to_dict(self) -> dict:
+        params = {
+            "n": self.n,
+            "size": self.size,
+            "model": self.model,
+            "response_format": self.response_format,
+        }
+        if self.prompt:
+            params["prompt"] = self.prompt
+        if self.quality:  # Only add if DALL-E 3 and parameter is provided
+            params["quality"] = self.quality
+        if self.style:    # Only add if DALL-E 3 and parameter is provided
+            params["style"] = self.style
+        if self.user:
+            params["user"] = self.user
+        return params
+
+
+class DallE:
+    def __init__(self, api_key: str = None):
+        if api_key:
+            client.api_key = api_key
+
+    def generate_image(self, image_params: ImageParameters) -> List[dict]:
+        payload = image_params.to_dict()
+        return client.images.generate(**payload)
+
+    def edit_image(self, image: bytes, mask: Optional[bytes], image_params: ImageParameters) -> List[dict]:
+        payload = image_params.to_dict()
+        payload["image"] = image
+        if mask:
+            payload["mask"] = mask
+        return client.images.edit(**payload)
+
+    def create_image_variation(self, image: bytes, image_params: ImageParameters) -> List[dict]:
+        payload = image_params.to_dict()
+        payload["image"] = image
+        return client.images.create_variation(**payload)
+
+
 def get_message(chat_completion: ChatCompletion) -> str:
     """Extracts the message content from the chat completion."""
     message = chat_completion.choices[0].message.content
@@ -185,6 +246,39 @@ class FunctionCall:
         return {"name": self.name, "parameters": self.parameters}
 
 
+class ToolFunction:
+    def __init__(self, name: str, parameters: Dict[str, Any], description: Optional[str] = None):
+        self.type = "function"
+        self.function = {
+            "name": name,
+            "parameters": parameters,
+            "description": description
+        }
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Converts the ToolFunction instance to a dictionary."""
+        return {
+            "type": self.type,
+            "function": self.function
+        }
+
+class ToolChoice:
+    def __init__(self, name: Optional[str] = None):
+        if name:
+            self.tool_choice = {
+                "type": "function",
+                "function": {
+                    "name": name
+                }
+            }
+        else:
+            self.tool_choice = "auto"
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Converts the ToolChoice instance to a dictionary."""
+        return self.tool_choice
+
+
 class CompletionParameters:
     def __init__(
         self,
@@ -194,13 +288,15 @@ class CompletionParameters:
         max_tokens: Optional[int] = None,
         frequency_penalty: float = 0.0,
         presence_penalty: float = 0.0,
-        stop: Optional[str] = None,
+        stop: Optional[List[str]] = None,
         n: int = 1,
         stream: bool = False,
-        logit_bias: Optional[Dict[str, Any]] = None,
+        logit_bias: Optional[Dict[str, float]] = None,
         user: Optional[str] = None,
-        function_call: Optional[FunctionCall] = None,
-        functions: Optional[List[Dict[str, Any]]] = None,
+        function_call: Optional[FunctionCall] = None,  # Deprecated: function_call
+        functions: Optional[List[Dict[str, Any]]] = None, # Deprecated: functions
+        tools: Optional[List[ToolFunction]] = None,
+        tool_choice: Optional[ToolChoice] = None,
     ):
         self.model = model
         self.temperature = temperature
@@ -215,10 +311,16 @@ class CompletionParameters:
         self.user = user
         self.function_call = function_call
         self.functions = functions
+        self.tools = [tool.to_dict() for tool in tools] if tools else None
+        self.tool_choice = tool_choice.to_dict() if tool_choice else None
 
     def to_dict(self) -> Dict[str, Any]:
         """Converts the CompletionParameters instance to a dictionary."""
-        chat_params = {k: v.to_dict() if isinstance(v, FunctionCall) else v for k, v in vars(self).items() if v is not None}
+        chat_params = {
+            k: v.to_dict() if hasattr(v, "to_dict") else v 
+            for k, v in vars(self).items() 
+            if v is not None
+        }
         return chat_params
 
 
@@ -314,7 +416,6 @@ class Chat(BaseChat):
 
         self.q.append(self.build_assistant_message(message))
         return message
-
 
 
 def get_encoding(model):
@@ -464,3 +565,45 @@ if __name__ == "__main__":
     rich.print(converter.to_srt())
     rich.print(converter.to_vtt())
     openai_whisper_translation('./test.mp3', response_format=const.WhisperResponseType.VTT)
+
+    image_client = DallE()
+    # Image generation with DALL-E 3
+    image_params = ImageParameters(
+        prompt="A cute baby sea otter",
+        n=1,
+        size=const.ImgSize._1024x1024,
+        model=const.DALLE_3,
+        quality=const.ImgQuality.STANDARD,
+        style=const.ImgStyle.VIVID,
+    )
+    generated_images = image_client.generate_image(image_params)
+
+    # Image editing with DALL-E 2 (since editing is only supported with DALL-E 2 as per provided doc)
+    image_params_dalle2 = ImageParameters(
+        prompt="a love mask used for edit mask",
+        n=2,
+        size=const.ImgSize._256x256,
+        model=const.DALLE_2,
+    )
+    generated_images = image_client.generate_image(image_params_dalle2)
+    edited_images = image_client.edit_image(
+        image=open("cloud.png", "rb").read(),
+        mask=open("cloud.png", "rb").read(),
+        image_params=image_params_dalle2
+    )
+
+    # Creating image variations with DALL-E 2
+    image_variation_params = ImageParameters(
+        n=2,
+        size=const.ImgSize._256x256,
+        model=const.DALLE_2,
+    )
+    image_variations = image_client.create_image_variation(
+        image=open("mask.png", "rb").read(),
+        image_params=image_variation_params
+    )
+
+    # Process the response as needed
+    print(generated_images)
+    print(edited_images)
+    print(image_variations)
