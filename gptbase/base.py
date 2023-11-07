@@ -9,6 +9,8 @@ from openai import OpenAI, Stream
 from openai.types.chat import ChatCompletionChunk, ChatCompletion
 from rich.logging import RichHandler
 
+import const
+
 
 client = OpenAI(max_retries=10)
 logger = logging.getLogger(__name__)
@@ -66,7 +68,7 @@ class FunctionCall:
 class CompletionParameters:
     def __init__(
         self,
-        model: str = "gpt-3.5-turbo-0613",
+        model: str = const.GPT_35_TURBO,
         temperature: float = 1.0,
         top_p: Optional[int] = None,
         max_tokens: Optional[int] = None,
@@ -194,23 +196,14 @@ class Chat(BaseChat):
         return message
 
 
-# Constants for token counts and model encodings
-TOKENS_PER_MESSAGE = {"gpt-3.5-turbo-0301": 4, "gpt-4-0314": 3}
-TOKENS_PER_NAME = {"gpt-3.5-turbo-0301": -1, "gpt-4-0314": 1}
-DEFAULT_MODEL = "cl100k_base"
-WARNINGS = {
-    "gpt-3.5-turbo": "Warning: gpt-3.5-turbo may change over time. Returning num tokens assuming gpt-3.5-turbo-0301.",
-    "gpt-4": "Warning: gpt-4 may change over time. Returning num tokens assuming gpt-4-0314.",
-}
-
 
 def get_encoding(model):
     """Get the encoding for a model, with a fallback to the default model if not found."""
     try:
         return tiktoken.encoding_for_model(model)
     except KeyError:
-        print(f"Warning: model {model} not found. Using {DEFAULT_MODEL} encoding.")
-        return tiktoken.get_encoding(DEFAULT_MODEL)
+        print(f"Warning: model {model} not found. Using {const.DEFAULT_MODEL} encoding.")
+        return tiktoken.get_encoding(const.DEFAULT_MODEL)
 
 
 def count_tokens(text: str, model="gpt-3.5-turbo"):
@@ -226,34 +219,27 @@ def count_tokens(text: str, model="gpt-3.5-turbo"):
 
 def count_tokens_in_message(message, encoding, model):
     """Count the tokens in a single message."""
-    tokens = TOKENS_PER_MESSAGE.get(model, 0)
+    tokens = const.TOKENS_PER_MESSAGE.get(model, 0)
     for key, value in message.items():
         tokens += len(encoding.encode(value))
         if key == "name":
-            tokens += TOKENS_PER_NAME.get(model, 0)
+            tokens += const.TOKENS_PER_NAME.get(model, 0)
     return tokens
 
 
-def num_tokens_from_messages(messages, model="gpt-3.5-turbo-0613"):
+def num_tokens_from_messages(messages, model=const.GPT_35_TURBO_0613):
     """Return the number of tokens used by a list of messages."""
     try:
         encoding = tiktoken.encoding_for_model(model)
     except KeyError:
         print("Warning: model not found. Using cl100k_base encoding.")
         encoding = tiktoken.get_encoding("cl100k_base")
-    if model in {
-        "gpt-3.5-turbo-0613",
-        "gpt-3.5-turbo-16k-0613",
-        "gpt-4-0314",
-        "gpt-4-32k-0314",
-        "gpt-4-0613",
-        "gpt-4-32k-0613",
-        }:
-        tokens_per_message = 3
-        tokens_per_name = 1
-    elif model == "gpt-3.5-turbo-0301":
+    if model == "gpt-3.5-turbo-0301":
         tokens_per_message = 4  # every message follows <|start|>{role/name}\n{content}<|end|>\n
         tokens_per_name = -1  # if there's a name, the role is omitted
+    elif model in const.GPT_MODEL_LIST:
+        tokens_per_message = 3
+        tokens_per_name = 1
     elif "gpt-3.5-turbo" in model:
         print("Warning: gpt-3.5-turbo may update over time. Returning num tokens assuming gpt-3.5-turbo-0613.")
         return num_tokens_from_messages(messages, model="gpt-3.5-turbo-0613")
