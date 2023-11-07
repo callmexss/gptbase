@@ -18,6 +18,7 @@ setup(
         "rich==13.0.1",
         "tiktoken==0.5.1",
         "click==8.0.3",
+        "iso-639==0.4.5",
     ],
     classifiers=[
         "Programming Language :: Python :: 3",

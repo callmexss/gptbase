@@ -7,6 +7,7 @@ import rich
 import tiktoken
 from openai import OpenAI, Stream
 from openai.types.chat import ChatCompletionChunk, ChatCompletion
+from openai.types.audio import Transcription, Translation
 from rich.logging import RichHandler
 
 import const
@@ -22,6 +23,94 @@ logging.basicConfig(
     datefmt="[%X]",
     handlers=[RichHandler(rich_tracebacks=True)],
 )
+
+
+def openai_tts(
+    input: str,
+    model: str = const.TTS_1,
+    voice: str = const.AIVoice.ALLOY,
+    response_format: str = const.TTSAudioType.MP3,
+    speed: float = 1.0,
+):
+    client = OpenAI()
+    return client.audio.speech.create(
+        input=input,
+        model=model,
+        voice=voice,
+        response_format=response_format,
+        speed=speed,
+    )
+
+
+def openai_whisper(
+    audio_file_path: str,
+    model: str = const.WHISPER_1,
+    language: Optional[str] = None,
+    prompt: Optional[str] = None,
+    response_format: str = const.WhisperResponseType.JSON,
+    temperature: Optional[float] = None
+):
+    with open(audio_file_path, "rb") as audio_file:
+        transcription = client.audio.transcriptions.create(
+            model=model,
+            file=audio_file,
+            language=language,
+            prompt=prompt,
+            response_format=response_format,
+            temperature=temperature
+        )
+    return transcription
+
+
+class TranscriptionConverter:
+    def __init__(self, transcription: Transcription):
+        self.transcription = transcription
+        self.segments = transcription.segments
+
+    def to_text(self) -> str:
+        return '\n'.join(segment['text'] for segment in self.segments)
+
+    def to_json(self) -> str:
+        return json.dumps([segment['text'] for segment in self.segments])
+
+    def to_srt(self) -> str:
+        return self._convert_to_subtitle_format(is_srt=True)
+
+    def to_vtt(self) -> str:
+        return 'WEBVTT\n\n' + self._convert_to_subtitle_format(is_srt=False)
+
+    def _convert_to_subtitle_format(self, is_srt: bool) -> str:
+        subtitle_output = []
+        for i, segment in enumerate(self.segments):
+            start_time = segment['start']
+            end_time = segment['end']
+            start_timestamp = self._format_timestamp(start_time, is_srt)
+            end_timestamp = self._format_timestamp(end_time, is_srt)
+            subtitle_output.append(f'{i + 1}\n{start_timestamp} --> {end_timestamp}\n{segment["text"]}\n')
+        return '\n'.join(subtitle_output)
+
+    @staticmethod
+    def _format_timestamp(time: float, is_srt: bool) -> str:
+        hours, remainder = divmod(int(time), 3600)
+        minutes, seconds = divmod(remainder, 60)
+        milliseconds = int((time % 1) * 1000)
+        if is_srt:
+            return f'{hours:02d}:{minutes:02d}:{seconds:02d},{milliseconds:03d}'
+        else:
+            return f'{hours:02d}:{minutes:02d}:{seconds:02d}.{milliseconds:03d}'
+
+    def convert(self, output_type: str) -> str:
+        if output_type == const.WhisperResponseType.TEXT:
+            return self.to_text()
+        elif output_type == const.WhisperResponseType.JSON:
+            return self.to_json()
+        elif output_type == const.WhisperResponseType.SRT:
+            return self.to_srt()
+        elif output_type == const.WhisperResponseType.VTT:
+            return self.to_vtt()
+        else:
+            return json.dumps(self.transcription)
+
 
 def get_message(chat_completion: ChatCompletion) -> str:
     """Extracts the message content from the chat completion."""
@@ -311,7 +400,7 @@ if __name__ == "__main__":
 
     # Define the parameters for the chat completion
     params = CompletionParameters(
-        model="gpt-3.5-turbo-0613",
+        model=const.GPT_35_TURBO_0613,
         function_call=get_weather_function,
         functions=functions,
         # Add other parameters as needed
@@ -334,3 +423,12 @@ if __name__ == "__main__":
     func_dic = {get_current_weather.__name__: get_current_weather}
     func_dic
     call_with_chat_completion(response, func_dic)
+
+    s = 'There are several steps you can follow to learn Python.'
+    response = openai_tts(s, speed=1.2)
+    response.stream_to_file('./test.mp3')
+    res = openai_whisper('./test.mp3', response_format=const.WhisperResponseType.VERBOSE_JSON)
+    rich.print(res)
+    converter = TranscriptionConverter(res)
+    rich.print(converter.to_srt())
+    rich.print(converter.to_vtt())
